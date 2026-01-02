@@ -4,8 +4,12 @@ This project implements a numerical solver for the **2D Inviscid Burgers Equatio
 
 The governing equation solved is:
 ```math
-\frac{\partial u}{\partial t} + u \frac{\partial u}{\partial x} + u \frac{\partial u}{\partial y} = 0
+\frac{\partial u}{\partial t} + a u \frac{\partial u}{\partial x} + b \frac{\partial u}{\partial y} = 0
 ```
+
+Where:
+- $a$: Coefficient for nonlinear convection term in x-direction (Case 1: $a=1.0$)
+- $b$: Coefficient for linear advection term in y-direction (Case 1: $b=1.0$)
 
 ## Features
 
