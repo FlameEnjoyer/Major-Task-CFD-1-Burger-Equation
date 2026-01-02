@@ -695,6 +695,57 @@ class BurgersSolver2D:
 
         return fig
 
+    def plot_grid(self, save_path: str = None, show_plot: bool = True,
+                  title: str = "Grid Generation") -> plt.Figure:
+        """
+        Plot the computational grid (Mesh).
+        
+        Parameters
+        ----------
+        save_path : str, optional
+            Path to save the figure
+        show_plot : bool
+            Whether to display the plot
+        title : str
+            Title of the plot
+            
+        Returns
+        -------
+        fig : matplotlib.figure.Figure
+            The generated figure
+        """
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111)
+        
+        # Plot vertical lines (constant x)
+        for i in range(self.N):
+            ax.plot(self.X[:, i], self.Y[:, i], 'r-', linewidth=0.5, alpha=0.7)
+            
+        # Plot horizontal lines (constant y)
+        for j in range(self.N):
+            ax.plot(self.X[j, :], self.Y[j, :], 'r-', linewidth=0.5, alpha=0.7)
+            
+        ax.set_xlabel('x (Physical) / $\\xi$ (Computational)', fontsize=12)
+        ax.set_ylabel('y (Physical) / $\\eta$ (Computational)', fontsize=12)
+        ax.set_title(f'{title}\nGrid size: {self.N}x{self.N}', fontsize=14)
+        ax.set_aspect('equal')
+        
+        # Set limits with small padding
+        padding = 0.02
+        ax.set_xlim(self.x_min - padding, self.x_max + padding)
+        ax.set_ylim(self.y_min - padding, self.y_max + padding)
+        
+        plt.tight_layout()
+        
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Figure saved to: {save_path}")
+            
+        if show_plot:
+            plt.show()
+            
+        return fig
+
     def print_summary(self):
         """Print a summary of the solver state and solution."""
         print("\n" + "="*60)

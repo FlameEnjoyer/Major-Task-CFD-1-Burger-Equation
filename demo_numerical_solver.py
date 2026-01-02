@@ -53,6 +53,29 @@ def run_case1_analysis():
 
     results = {}
 
+    # ===== Task: Grid Generation Visualization =====
+    print("\n" + "="*70)
+    print(" GRID GENERATION VISUALIZATION")
+    print("="*70)
+    
+    # Grid for N=21
+    print("\nGenerating grid plot for N=21...")
+    solver_21_grid = BurgersSolver2D(N=21, a=1.0, b=1.0, c=1.5, d=-0.5)
+    solver_21_grid.plot_grid(
+        save_path='plots/numerical/grid_N21.png',
+        show_plot=False,
+        title="Physical/Computational Domain (N=21)"
+    )
+    
+    # Grid for N=41
+    print("Generating grid plot for N=41...")
+    solver_41_grid = BurgersSolver2D(N=41, a=1.0, b=1.0, c=1.5, d=-0.5)
+    solver_41_grid.plot_grid(
+        save_path='plots/numerical/grid_N41.png',
+        show_plot=False,
+        title="Physical/Computational Domain (N=41)"
+    )
+
     # ===== Solve with N = 21 =====
     print("\n" + "#"*70)
     print(" GRID: N = 21 (21 x 21 = 441 cells)")
@@ -326,6 +349,8 @@ def main():
     print(" ANALYSIS COMPLETED SUCCESSFULLY!")
     print("="*70)
     print("\nOutput files saved in plots/numerical/:")
+    print("  - grid_N21.png  <-- NEW: Grid visualization")
+    print("  - grid_N41.png  <-- NEW: Grid visualization")
     print("  - solution_N21.png")
     print("  - solution_N41.png")
     print("  - convergence_N21.png")

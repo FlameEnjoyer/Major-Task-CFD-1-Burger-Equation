@@ -150,3 +150,12 @@ settings_local.py
 # Temporary files
 *.tmp
 *.temp
+
+# Project-specific exclusions (kept local)
+References/
+.claude/
+.gemini/
+brain/
+GIT_WORKFLOW.md
+plots/
+nul
