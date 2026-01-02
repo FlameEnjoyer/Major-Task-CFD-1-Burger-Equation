@@ -206,6 +206,18 @@ class BurgersSolver2D:
         -------
         flux_x : np.ndarray
             Flux contribution in x-direction
+            
+        FVM Derivation Note:
+        --------------------
+        The discrete equation for cell (i,j) is:
+        u_new = u_old - (dt/dx)*(F_{i+1/2} - F_{i-1/2}) - ...
+        
+        Where the numerical flux F_{i+1/2} at the interface is approximated using 
+        the First-Order Upwind Scheme based on the wave speed 'a*u':
+        - If a*u > 0: F_{i+1/2} ≈ a * u_{i}   (Information flows from left)
+        - If a*u < 0: F_{i+1/2} ≈ a * u_{i+1} (Information flows from right)
+        
+        This code implements this by computing the net flux divergence directly.
         """
         N = self.N
         flux = np.zeros_like(u)
