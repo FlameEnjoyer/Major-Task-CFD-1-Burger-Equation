@@ -28,6 +28,7 @@ Where:
 │   └── numerical/           # Numerical FVM solver implementation
 ├── demo_numerical_solver.py # Main script to run numerical analysis
 ├── demo_analytical_case1.py # Script to visualize analytical solution
+├── run_multicase_study.py   # Multi-case study automation script
 ├── plots/                   # Generated output plots
 └── requirements.txt         # Python dependencies
 ```
@@ -80,6 +81,21 @@ python demo_analytical_case1.py
 - Generates contour plots showing the shock discontinuities.
 - Plots solution slices at constant x and y values.
 - Saves figures to `plots/analytical/`.
+
+### 3. Run Multi-Case Study
+
+To run the automated solver for 4 different parameter cases and generate comparative visualizations:
+
+```bash
+python run_multicase_study.py
+```
+
+**What this does:**
+- Solves 4 specific cases (varying parameters $a, b, d$) until steady state.
+- Generates **Convergence Plots** (Residual vs Iterations) for all cases.
+- Generates **Side-by-Side Plots** showing the "Numerical Result" next to the "Grid Density" (wireframe).
+- Generates an **Error Map** for Case 1 (Numerical vs Analytical).
+- Saves all figures to `plots/multicase/`.
 
 ## Dependencies
 
