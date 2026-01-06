@@ -160,3 +160,16 @@ GIT_WORKFLOW.md
 plots/
 nul
 REPORT.md
+scripts/
+docs/
+_ul
+_ul-*
+*.py.bak
+TDMA_IMPLEMENTATION_GUIDE.md
+generate_*.py
+regenerate_*.py
+verify_*.py
+test_*.py
+init_project.py
+run_multicase_study.py
+

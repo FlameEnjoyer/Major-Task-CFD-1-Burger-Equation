@@ -1,6 +1,6 @@
 # 2D Inviscid Burgers Equation CFD Project
 
-This project implements a numerical solver for the **2D Inviscid Burgers Equation** using the **Finite Volume Method (FVM)** with a first-order **Upwind Scheme**. It also includes an exact analytical solution for validation purposes.
+This project implements a numerical solver for the **2D Inviscid Burgers Equation** using the **Finite Volume Method (FVM)** with **TVD (Total Variation Diminishing)** schemes. It includes multiple flux limiters and an exact analytical solution for validation.
 
 The governing equation solved is:
 ```math
@@ -13,24 +13,31 @@ Where:
 
 ## Features
 
-- **Finite Volume Method (FVM)** discretization.
-- **First-Order Upwind Scheme** for convective fluxes to handle shock waves.
-- **Explicit Euler** time integration with CFL-based adaptive time stepping.
-- **Grid Generation Visualization** for N=21 and N=41 meshes.
-- **Verification** against an exact analytical solution (Case 1).
-- **Grid Convergence Analysis** to demonstrate solution accuracy.
+- **Finite Volume Method (FVM)** discretization
+- **TVD Schemes** with multiple flux limiters:
+  - Minmod, Van Albada, UMIST, Superbee
+  - Van Leer, Koren, QUICK, SMART
+- **First-Order Upwind Scheme** for baseline comparison
+- **Explicit Euler** time integration with CFL-based adaptive time stepping
+- **Verification** against an exact analytical solution (Case 1)
 
 ## Project Structure
 
 ```
+├── demos/
+│   ├── demo_analytical_solution.py   # Visualize analytical solution
+│   ├── demo_tvd_single_limiter.py    # Solve with user-selected limiter
+│   └── demo_tvd_all_limiters.py      # Compare all limiters
 ├── src/
-│   ├── analytical/          # Analytical solution implementation
-│   └── numerical/           # Numerical FVM solver implementation
-├── demo_numerical_solver.py # Main script to run numerical analysis
-├── demo_analytical_case1.py # Script to visualize analytical solution
-├── run_multicase_study.py   # Multi-case study automation script
-├── plots/                   # Generated output plots
-└── requirements.txt         # Python dependencies
+│   ├── analytical/                   # Analytical solution implementation
+│   │   └── case1_solution.py
+│   └── numerical/                    # Numerical solver implementations
+│       ├── solver.py                 # Original FVM solver
+│       └── solver_fvm_tvd.py         # TVD solver with flux limiters
+├── plots/                            # Generated output plots
+├── .gitignore
+├── README.md
+└── requirements.txt
 ```
 
 ## Installation
@@ -42,63 +49,68 @@ Where:
    ```
 
 2. **Install dependencies:**
-   It is recommended to use a virtual environment.
    ```bash
    pip install -r requirements.txt
    ```
 
 ## Usage
 
-### 1. Run Numerical Analysis (Main Task)
+### Demo 1: Analytical Solution
 
-To run the complete numerical simulation, generate grids, and perform error analysis:
+Visualize the exact analytical solution to understand the shock wave structure:
 
 ```bash
-python demo_numerical_solver.py
+python demos/demo_analytical_solution.py
+```
+
+**Output:**
+- Contour plot of the analytical solution
+- 3D surface plot
+- Solution profiles at constant x and y values
+
+### Demo 2: Single TVD Limiter (Interactive)
+
+Solve using a user-selected TVD flux limiter and compare with the analytical solution:
+
+```bash
+python demos/demo_tvd_single_limiter.py
 ```
 
 **What this does:**
-- Generates and plots the computational grid for **N=21** and **N=41**.
-- Solves the inviscid Burgers equation until **steady state** is reached.
-- Computes error metrics (L1, L2, L∞) against the analytical solution.
-- Generates the following visualizations in `plots/numerical/`:
-  - `grid_N21.png`, `grid_N41.png`: Physical/Computational domain grids.
-  - `solution_N*.png`: Filled contour and 3D surface plots of the solution.
-  - `convergence_N*.png`: Residual history showing convergence to steady state.
-  - `comparison_N*.png`: Side-by-side comparison with the analytical solution.
-  - `grid_comparison.png`: Visual comparison of results across grid sizes.
+- Presents a menu of available flux limiters
+- Solves the equation using your chosen limiter
+- Displays side-by-side comparison (Numerical vs Analytical)
+- Reports error metrics (L₁, L₂, L∞)
 
-### 2. Run Analytical Solution
+### Demo 3: All TVD Limiters Comparison
 
-To visualize the exact analytical solution and understand the shock wave structures:
+Comprehensive comparison of all available TVD flux limiters:
 
 ```bash
-python demo_analytical_case1.py
+python demos/demo_tvd_all_limiters.py
 ```
 
 **What this does:**
-- Verifies boundary conditions.
-- Generates contour plots showing the shock discontinuities.
-- Plots solution slices at constant x and y values.
-- Saves figures to `plots/analytical/`.
+- Solves with all 8 TVD limiters
+- Generates a grid of contour plots for visual comparison
+- Creates error bar chart ranking all limiters
+- Prints a summary table with error metrics
 
-### 3. Run Multi-Case Study
+## Available Flux Limiters
 
-To run the automated solver for 4 different parameter cases and generate comparative visualizations:
-
-```bash
-python run_multicase_study.py
-```
-
-**What this does:**
-- Solves 4 specific cases (varying parameters $a, b, d$) until steady state.
-- Generates **Convergence Plots** (Residual vs Iterations) for all cases.
-- Generates **Side-by-Side Plots** showing the "Numerical Result" next to the "Grid Density" (wireframe).
-- Generates an **Error Map** for Case 1 (Numerical vs Analytical).
-- Saves all figures to `plots/multicase/`.
+| Limiter | Description |
+|---------|-------------|
+| Minmod | Most diffusive, very stable |
+| Van Albada | Smooth, balanced accuracy/stability |
+| UMIST | Sharp shock capturing |
+| Superbee | Most compressive |
+| Van Leer | Good balance |
+| Koren | Third-order accurate |
+| QUICK | Quadratic upstream interpolation |
+| SMART | High resolution |
 
 ## Dependencies
 
-- **NumPy**: Matrix operations and grid handling.
-- **Matplotlib**: Visualization and plotting.
-- **SciPy**: Scientific computing utilities.
+- **NumPy**: Matrix operations and grid handling
+- **Matplotlib**: Visualization and plotting
+- **SciPy**: Scientific computing utilities

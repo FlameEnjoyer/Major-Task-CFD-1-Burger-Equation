@@ -143,20 +143,28 @@ class BurgersSolver2D:
         """
         Apply boundary conditions to the solution array.
 
-        BCs:
-            u(0, y) = c       (left boundary, i=0)
-            u(1, y) = d       (right boundary, i=N-1)
-            u(x, 0) = c - (c-d)*x  (bottom boundary, j=0)
+        BCs (as specified in the PDF, Figure 4.1):
+            u(0, y) = c                   (left boundary, Dirichlet)
+            u(1, y) = d                   (right boundary, Dirichlet)
+            u(x, 0) = c - (c-d)*x         (bottom boundary, Dirichlet)
+            du/dy = 0 at y = 1            (top boundary, Neumann - zero gradient)
+
+        Since v = b > 0, flow goes upward (from bottom to top).
+        Top boundary is an outflow boundary, so we use zero gradient (Neumann).
         """
-        # Left boundary: u(0, y) = c
+        # Left boundary: u(0, y) = c (Dirichlet)
         self.u[:, 0] = self.c
 
-        # Right boundary: u(1, y) = d
+        # Right boundary: u(1, y) = d (Dirichlet)
         self.u[:, -1] = self.d
 
-        # Bottom boundary: u(x, 0) = c - (c - d) * x
+        # Bottom boundary: u(x, 0) = c - (c - d) * x (Dirichlet)
         for i in range(self.N):
             self.u[0, i] = self.c - (self.c - self.d) * self.x[i]
+
+        # Top boundary: du/dy = 0 (Neumann - zero gradient, outflow BC)
+        # Copy interior values to top row (excluding corners which are set by left/right BC)
+        self.u[-1, 1:-1] = self.u[-2, 1:-1]
 
     def _compute_time_step(self):
         """
@@ -189,9 +197,211 @@ class BurgersSolver2D:
 
         self.dt = self.cfl * min(dt_x, dt_y)
 
+    def _compute_fvm_flux_divergence(self, u: np.ndarray) -> np.ndarray:
+        """
+        Compute the flux divergence using proper Finite Volume Method with Upwind scheme.
+
+        FVM formulation for 2D Inviscid Burgers Equation:
+            ∂u/∂t + ∂(a*u²/2)/∂x + ∂(b*u)/∂y = 0
+
+        In integral form over control volume V_c:
+            ∫∫ ∂u/∂t dV + ∮ H⃗·dS⃗ = 0
+
+        Where H⃗ = E*î + F*ĵ with:
+            E = a*u²/2  (x-direction flux)
+            F = b*u     (y-direction flux)
+
+        The flux at each face using first-order upwind:
+            - Face velocity: u_face = (u_C + u_neighbor)/2
+            - If face_velocity > 0: use upwind (upstream) cell value
+            - If face_velocity < 0: use downwind (downstream) cell value
+
+        Parameters
+        ----------
+        u : np.ndarray
+            Current solution array
+
+        Returns
+        -------
+        flux_div : np.ndarray
+            Total flux divergence (F_e + F_w + F_n + F_s) / cell_area
+        """
+        N = self.N
+        flux_div = np.zeros_like(u)
+
+        # Cell area (for uniform grid)
+        cell_area = self.dx * self.dy
+
+        # Surface areas
+        # k_e = +dy (east face, normal points +x)
+        # k_w = -dy (west face, normal points -x)
+        # l_n = +dx (north face, normal points +y)
+        # l_s = -dx (south face, normal points -y)
+        k_e = self.dy
+        k_w = -self.dy
+        l_n = self.dx
+        l_s = -self.dx
+
+        # Interior points (excluding boundaries which are fixed)
+        for j in range(1, N - 1):  # y direction (row)
+            for i in range(1, N - 1):  # x direction (column)
+                u_C = u[j, i]      # Center
+                u_E = u[j, i + 1]  # East
+                u_W = u[j, i - 1]  # West
+                u_N = u[j + 1, i]  # North
+                u_S = u[j - 1, i]  # South
+
+                # ============================================
+                # East face flux: F_e = k_e * u_e * phi_e
+                # ============================================
+                # Face velocity (average)
+                u_e = 0.5 * (u_C + u_E)
+
+                # Upwind selection for phi_e based on k_e * u_e
+                # k_e > 0, so sign depends on u_e
+                if self.a * u_e >= 0:
+                    # Flow goes from C to E, use upwind value = u_C
+                    phi_e = u_C
+                else:
+                    # Flow goes from E to C, use upwind value = u_E
+                    phi_e = u_E
+
+                # Flux at east face: E_e * area = (a/2)*u_e*phi_e * dy
+                # Using the formulation from PDF: k_e * u_e * phi_e where the flux is a*u*phi
+                # But for Burgers: E = a*u²/2, so at face: E_e = (a/2)*u_e*u_e = (a/2)*phi_e*phi_e
+                # Actually, the proper upwind flux for Burgers is:
+                # F_{i+1/2} = (a/2) * phi_e² where phi_e is the upwind value
+                flux_e = k_e * (self.a / 2.0) * phi_e * phi_e
+
+                # ============================================
+                # West face flux: F_w = k_w * u_w * phi_w
+                # ============================================
+                # Face velocity (average)
+                u_w = 0.5 * (u_C + u_W)
+
+                # Upwind selection for phi_w
+                # k_w < 0, so we need to consider the flux direction
+                # At west face, positive flow (u_w > 0) means flow from W to C
+                if self.a * u_w >= 0:
+                    # Flow goes from W to C, use upwind value = u_W
+                    phi_w = u_W
+                else:
+                    # Flow goes from C to W, use upwind value = u_C
+                    phi_w = u_C
+
+                # Flux at west face
+                flux_w = k_w * (self.a / 2.0) * phi_w * phi_w
+
+                # ============================================
+                # North face flux: F_n = l_n * phi_n
+                # ============================================
+                # For y-direction: F = b*u, so flux = b*phi_n * dx
+                # v = b is constant (given as 1 in the problem)
+
+                # Upwind selection for phi_n
+                if self.b >= 0:
+                    # Flow goes from C to N (upward), use upwind value = u_C
+                    phi_n = u_C
+                else:
+                    # Flow goes from N to C (downward), use upwind value = u_N
+                    phi_n = u_N
+
+                # Flux at north face
+                flux_n = l_n * self.b * phi_n
+
+                # ============================================
+                # South face flux: F_s = l_s * phi_s
+                # ============================================
+                # Upwind selection for phi_s
+                if self.b >= 0:
+                    # Flow goes from S to C (upward), use upwind value = u_S
+                    phi_s = u_S
+                else:
+                    # Flow goes from C to S (downward), use upwind value = u_C
+                    phi_s = u_C
+
+                # Flux at south face
+                flux_s = l_s * self.b * phi_s
+
+                # ============================================
+                # Total flux divergence = (sum of fluxes) / cell_area
+                # ============================================
+                flux_div[j, i] = (flux_e + flux_w + flux_n + flux_s) / cell_area
+
+        return flux_div
+
+    def _compute_fvm_flux_divergence_vectorized(self, u: np.ndarray) -> np.ndarray:
+        """
+        Vectorized computation of FVM flux divergence using upwind scheme.
+
+        More efficient implementation using numpy operations.
+        """
+        N = self.N
+        flux_div = np.zeros_like(u)
+
+        # Cell area
+        cell_area = self.dx * self.dy
+
+        # Surface areas
+        k_e = self.dy
+        k_w = -self.dy
+        l_n = self.dx
+        l_s = -self.dx
+
+        # Interior slices
+        int_j = slice(1, N - 1)  # rows 1 to N-2
+        int_i = slice(1, N - 1)  # cols 1 to N-2
+
+        # Get neighbor values
+        u_C = u[int_j, int_i]
+        u_E = u[int_j, 2:]       # i+1
+        u_W = u[int_j, :-2]      # i-1
+        u_N = u[2:, int_i]       # j+1
+        u_S = u[:-2, int_i]      # j-1
+
+        # ============================================
+        # East face
+        # ============================================
+        u_e = 0.5 * (u_C + u_E)
+        phi_e = np.where(self.a * u_e >= 0, u_C, u_E)
+        flux_e = k_e * (self.a / 2.0) * phi_e * phi_e
+
+        # ============================================
+        # West face
+        # ============================================
+        u_w = 0.5 * (u_C + u_W)
+        phi_w = np.where(self.a * u_w >= 0, u_W, u_C)
+        flux_w = k_w * (self.a / 2.0) * phi_w * phi_w
+
+        # ============================================
+        # North face
+        # ============================================
+        if self.b >= 0:
+            phi_n = u_C
+        else:
+            phi_n = u_N
+        flux_n = l_n * self.b * phi_n
+
+        # ============================================
+        # South face
+        # ============================================
+        if self.b >= 0:
+            phi_s = u_S
+        else:
+            phi_s = u_C
+        flux_s = l_s * self.b * phi_s
+
+        # Total flux divergence
+        flux_div[int_j, int_i] = (flux_e + flux_w + flux_n + flux_s) / cell_area
+
+        return flux_div
+
     def _compute_upwind_flux_x(self, u: np.ndarray) -> np.ndarray:
         """
         Compute the convective flux in x-direction using first-order upwind.
+
+        DEPRECATED: Use _compute_fvm_flux_divergence instead for proper FVM.
+        Kept for backward compatibility.
 
         For the term a*u*du/dx = d(a*u^2/2)/dx:
             - If a*u > 0: use left (backward) value
@@ -206,17 +416,17 @@ class BurgersSolver2D:
         -------
         flux_x : np.ndarray
             Flux contribution in x-direction
-            
+
         FVM Derivation Note:
         --------------------
         The discrete equation for cell (i,j) is:
         u_new = u_old - (dt/dx)*(F_{i+1/2} - F_{i-1/2}) - ...
-        
-        Where the numerical flux F_{i+1/2} at the interface is approximated using 
+
+        Where the numerical flux F_{i+1/2} at the interface is approximated using
         the First-Order Upwind Scheme based on the wave speed 'a*u':
         - If a*u > 0: F_{i+1/2} ≈ a * u_{i}   (Information flows from left)
         - If a*u < 0: F_{i+1/2} ≈ a * u_{i+1} (Information flows from right)
-        
+
         This code implements this by computing the net flux divergence directly.
         """
         N = self.N
@@ -241,6 +451,9 @@ class BurgersSolver2D:
     def _compute_upwind_flux_y(self, u: np.ndarray) -> np.ndarray:
         """
         Compute the advective flux in y-direction using first-order upwind.
+
+        DEPRECATED: Use _compute_fvm_flux_divergence instead for proper FVM.
+        Kept for backward compatibility.
 
         For the term b*du/dy:
             - If b > 0: use backward difference
@@ -275,6 +488,9 @@ class BurgersSolver2D:
         """
         Vectorized computation of x-direction flux using upwind scheme.
 
+        DEPRECATED: Use _compute_fvm_flux_divergence_vectorized instead for proper FVM.
+        Kept for backward compatibility.
+
         More efficient implementation using numpy operations.
         """
         flux = np.zeros_like(u)
@@ -304,6 +520,9 @@ class BurgersSolver2D:
     def _compute_upwind_flux_y_vectorized(self, u: np.ndarray) -> np.ndarray:
         """
         Vectorized computation of y-direction flux using upwind scheme.
+
+        DEPRECATED: Use _compute_fvm_flux_divergence_vectorized instead for proper FVM.
+        Kept for backward compatibility.
         """
         flux = np.zeros_like(u)
 
@@ -324,38 +543,239 @@ class BurgersSolver2D:
 
         return flux
 
-    def time_step(self, use_vectorized: bool = True) -> float:
+    def _solve_tdma(self, a: np.ndarray, b: np.ndarray, c: np.ndarray,
+                    d: np.ndarray) -> np.ndarray:
         """
-        Perform one time step using explicit Euler method.
+        Solve a tri-diagonal system using the Thomas Algorithm (TDMA).
 
-        u^{n+1} = u^n - dt * (flux_x + flux_y)
+        The system is:
+            a[i]*x[i-1] + b[i]*x[i] + c[i]*x[i+1] = d[i]
+
+        Algorithm:
+            Forward sweep: Eliminate lower diagonal
+            Backward substitution: Solve for x
 
         Parameters
         ----------
-        use_vectorized : bool
-            Use vectorized flux computation (faster)
+        a : np.ndarray
+            Lower diagonal (a[0] = 0)
+        b : np.ndarray
+            Main diagonal
+        c : np.ndarray
+            Upper diagonal (c[n-1] = 0)
+        d : np.ndarray
+            Right-hand side
+
+        Returns
+        -------
+        x : np.ndarray
+            Solution vector
+        """
+        n = len(d)
+        c_prime = np.zeros(n)
+        d_prime = np.zeros(n)
+        x = np.zeros(n)
+
+        # Forward sweep
+        c_prime[0] = c[0] / b[0] if abs(b[0]) > 1e-15 else 0
+        d_prime[0] = d[0] / b[0] if abs(b[0]) > 1e-15 else 0
+
+        for i in range(1, n):
+            denom = b[i] - a[i] * c_prime[i-1]
+            if abs(denom) < 1e-15:
+                denom = 1e-15
+            c_prime[i] = c[i] / denom
+            d_prime[i] = (d[i] - a[i] * d_prime[i-1]) / denom
+
+        # Backward substitution
+        x[n-1] = d_prime[n-1]
+        for i in range(n-2, -1, -1):
+            x[i] = d_prime[i] - c_prime[i] * x[i+1]
+
+        return x
+
+    def time_step_implicit(self) -> float:
+        """
+        Perform one time step using fully implicit method with direct TDMA.
+
+        Equation: ∂u/∂t + ∂(a*u²/2)/∂x + ∂(b*u)/∂y = 0
+
+        For implicit method: (u^(n+1) - u^n)/dt + flux_div(u^(n+1)) = 0
+        Linearize nonlinear x-flux: d(a*u²/2)/dx ≈ a*u^n * d(u^(n+1))/dx
+
+        Solve each row and column iteratively using TDMA.
 
         Returns
         -------
         residual : float
             L2 norm of the change in solution
         """
+        u_old = self.u.copy()
+        N = self.N
+
+        # Compute time step
+        self._compute_time_step()
+        dt = self.dt
+
+        # For better accuracy, do a few sub-iterations (Gauss-Seidel style)
+        n_sweeps = 5  # Number of ADI sweeps per time step
+
+        u_new = u_old.copy()
+
+        for sweep in range(n_sweeps):
+            # Step 1: Implicit solve in x-direction (line-by-line for each row)
+            for j in range(1, N-1):  # For each interior row
+                # Build tri-diagonal system for this row
+                aa = np.zeros(N)
+                bb = np.zeros(N)
+                cc = np.zeros(N)
+                dd = np.zeros(N)
+
+                for i in range(N):
+                    if i == 0:  # Left boundary
+                        bb[i] = 1.0
+                        dd[i] = self.c
+                    elif i == N-1:  # Right boundary
+                        bb[i] = 1.0
+                        dd[i] = self.d
+                    else:  # Interior points
+                        # Conservative form: d(a*u²/2)/dx
+                        # Linearize: d(a*u²/2)/dx ≈ a*u^n * du^(n+1)/dx
+                        u_ref = u_new[j, i]  # Use latest available value
+                        coeff_x = self.a * u_ref
+
+                        # Upwind based on wave speed
+                        if coeff_x >= 0:
+                            # Backward difference
+                            alpha_x = dt * coeff_x / self.dx
+                            aa[i] = -alpha_x
+                            bb[i] = 1.0 + alpha_x
+                            cc[i] = 0.0
+                        else:
+                            # Forward difference
+                            alpha_x = -dt * coeff_x / self.dx
+                            aa[i] = 0.0
+                            bb[i] = 1.0 + alpha_x
+                            cc[i] = -alpha_x
+
+                        # RHS includes old value and y-direction flux (explicit for now)
+                        flux_y = 0.0
+                        if self.b >= 0 and j > 0:
+                            flux_y = dt * self.b * (u_new[j, i] - u_new[j-1, i]) / self.dy
+                        elif self.b < 0 and j < N-1:
+                            flux_y = dt * self.b * (u_new[j+1, i] - u_new[j, i]) / self.dy
+
+                        dd[i] = u_old[j, i] - flux_y
+
+                # Solve TDMA for this row
+                u_new[j, :] = self._solve_tdma(aa, bb, cc, dd)
+
+            # Step 2: Implicit solve in y-direction (line-by-line for each column)
+            for i in range(1, N-1):  # For each interior column
+                # Build tri-diagonal system for this column
+                aa = np.zeros(N)
+                bb = np.zeros(N)
+                cc = np.zeros(N)
+                dd = np.zeros(N)
+
+                for j in range(N):
+                    if j == 0:  # Bottom boundary
+                        bb[j] = 1.0
+                        dd[j] = self.c - (self.c - self.d) * self.x[i]
+                    elif j == N-1:  # Top boundary (Neumann)
+                        bb[j] = 1.0
+                        cc[j] = -1.0
+                        dd[j] = 0.0
+                    else:  # Interior points
+                        # Y-direction: LINEAR advection b*du/dy
+                        beta_y = dt * self.b / self.dy if self.b >= 0 else -dt * self.b / self.dy
+
+                        if self.b >= 0:
+                            aa[j] = -beta_y
+                            bb[j] = 1.0 + beta_y
+                            cc[j] = 0.0
+                        else:
+                            aa[j] = 0.0
+                            bb[j] = 1.0 + beta_y
+                            cc[j] = -beta_y
+
+                        # RHS includes x-direction update
+                        flux_x = 0.0
+                        u_ref = u_new[j, i]
+                        coeff_x = self.a * u_ref
+
+                        if coeff_x >= 0 and i > 0:
+                            flux_x = dt * coeff_x * (u_new[j, i] - u_new[j, i-1]) / self.dx
+                        elif coeff_x < 0 and i < N-1:
+                            flux_x = dt * coeff_x * (u_new[j, i+1] - u_new[j, i]) / self.dx
+
+                        dd[j] = u_old[j, i] - flux_x
+
+                # Solve TDMA for this column
+                u_new[:, i] = self._solve_tdma(aa, bb, cc, dd)
+
+        self.u = u_new
+
+        # Apply boundary conditions
+        self._apply_boundary_conditions()
+
+        # Compute residual
+        diff = self.u - u_old
+        residual = np.sqrt(np.sum(diff**2)) / self.N
+
+        return residual
+
+    def time_step(self, use_vectorized: bool = True, use_fvm: bool = True,
+                  use_implicit: bool = False) -> float:
+        """
+        Perform one time step using explicit Euler or implicit TDMA method.
+
+        Explicit: u^{n+1} = u^n - dt * (flux_divergence)
+        Implicit: Uses ADI with TDMA solver
+
+        Parameters
+        ----------
+        use_vectorized : bool
+            Use vectorized flux computation (faster) - for explicit only
+        use_fvm : bool
+            Use proper FVM flux divergence (True) or old method (False) - for explicit only
+        use_implicit : bool
+            Use implicit TDMA method (True) or explicit Euler (False)
+
+        Returns
+        -------
+        residual : float
+            L2 norm of the change in solution
+        """
+        if use_implicit:
+            return self.time_step_implicit()
+
+        # Original explicit method
         # Store old solution
         u_old = self.u.copy()
 
         # Compute time step based on current CFL
         self._compute_time_step()
 
-        # Compute fluxes
-        if use_vectorized:
-            flux_x = self._compute_upwind_flux_x_vectorized(self.u)
-            flux_y = self._compute_upwind_flux_y_vectorized(self.u)
+        # Compute flux divergence
+        if use_fvm:
+            # Proper FVM with upwind scheme
+            if use_vectorized:
+                flux_div = self._compute_fvm_flux_divergence_vectorized(self.u)
+            else:
+                flux_div = self._compute_fvm_flux_divergence(self.u)
         else:
-            flux_x = self._compute_upwind_flux_x(self.u)
-            flux_y = self._compute_upwind_flux_y(self.u)
+            # Old method (kept for comparison)
+            if use_vectorized:
+                flux_x = self._compute_upwind_flux_x_vectorized(self.u)
+                flux_y = self._compute_upwind_flux_y_vectorized(self.u)
+            else:
+                flux_x = self._compute_upwind_flux_x(self.u)
+                flux_y = self._compute_upwind_flux_y(self.u)
+            flux_div = flux_x + flux_y
 
         # Update solution (explicit Euler)
-        self.u = u_old - self.dt * (flux_x + flux_y)
+        self.u = u_old - self.dt * flux_div
 
         # Apply boundary conditions
         self._apply_boundary_conditions()
@@ -369,7 +789,9 @@ class BurgersSolver2D:
     def solve_steady_state(self, max_iterations: int = 10000,
                            tolerance: float = 1e-6,
                            print_interval: int = 500,
-                           use_vectorized: bool = True) -> Dict:
+                           use_vectorized: bool = True,
+                           use_fvm: bool = True,
+                           use_implicit: bool = False) -> Dict:
         """
         Solve until steady state is reached.
 
@@ -385,7 +807,11 @@ class BurgersSolver2D:
         print_interval : int
             Print progress every this many iterations
         use_vectorized : bool
-            Use vectorized flux computation
+            Use vectorized flux computation (explicit only)
+        use_fvm : bool
+            Use proper FVM flux divergence (explicit only)
+        use_implicit : bool
+            Use implicit TDMA method (ADI) instead of explicit Euler
 
         Returns
         -------
@@ -396,11 +822,16 @@ class BurgersSolver2D:
             - 'final_residual': float
             - 'residual_history': list
             - 'time_elapsed': float
+            - 'method': str
         """
+        method_name = "Implicit TDMA (ADI)" if use_implicit else "Explicit Euler"
         print("\n" + "="*60)
         print("Starting steady-state solver...")
+        print(f"  Method: {method_name}")
         print(f"  Max iterations: {max_iterations}")
         print(f"  Tolerance: {tolerance:.2e}")
+        if not use_implicit:
+            print(f"  Using FVM: {use_fvm}")
         print("="*60 + "\n")
 
         start_time = time.time()
@@ -408,7 +839,11 @@ class BurgersSolver2D:
         converged = False
 
         for iteration in range(1, max_iterations + 1):
-            residual = self.time_step(use_vectorized=use_vectorized)
+            residual = self.time_step(
+                use_vectorized=use_vectorized,
+                use_fvm=use_fvm,
+                use_implicit=use_implicit
+            )
             self.residual_history.append(residual)
             self.iteration_count = iteration
 
@@ -438,7 +873,8 @@ class BurgersSolver2D:
             'iterations': self.iteration_count,
             'final_residual': self.residual_history[-1] if self.residual_history else 0,
             'residual_history': self.residual_history.copy(),
-            'time_elapsed': elapsed_time
+            'time_elapsed': elapsed_time,
+            'method': method_name
         }
 
     def get_solution(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
