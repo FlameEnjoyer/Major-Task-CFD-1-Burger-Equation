@@ -1,7 +1,8 @@
 """
-Demo 6: Grid Convergence Study (Order of Accuracy).
+Demo 5: Grid Convergence Study
 
-Performs a grid dependence test to verify the order of accuracy.
+Run this to perform grid convergence analysis using Upwind scheme.
+Tests multiple resolutions (N=21 to 201) and calculates order of accuracy.
 """
 
 import numpy as np
