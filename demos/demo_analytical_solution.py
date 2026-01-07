@@ -1,25 +1,7 @@
 """
-=================================================================================
-Demo 1: Analytical Solution for 2D Inviscid Burgers Equation
-=================================================================================
+Demo 1: Analytical Solution for 2D Inviscid Burgers Equation.
 
-This script visualizes the exact analytical solution for Case 1 of the
-2D Inviscid Burgers Equation.
-
-Equation: ∂u/∂t + a*u*∂u/∂x + b*∂u/∂y = 0
-
-Case 1 Parameters:
-    a = 1.0, b = 1.0, c = 1.5, d = -0.5
-
-Boundary Conditions:
-    u(0, y) = c = 1.5   (left boundary)
-    u(1, y) = d = -0.5  (right boundary)
-    u(x, 0) = 1.5 - 2x  (bottom boundary)
-
-Usage:
-    python demos/demo_analytical_solution.py
-
-=================================================================================
+Visualizes the exact analytical solution for Case 1.
 """
 
 import numpy as np
@@ -35,16 +17,7 @@ from src.analytical.case1_solution import analytical_solution_case1
 
 
 def plot_analytical_solution(N: int = 100, save_path: str = None):
-    """
-    Generate visualizations of the analytical solution.
-    
-    Parameters
-    ----------
-    N : int
-        Grid resolution (N x N points)
-    save_path : str, optional
-        Path to save the figure
-    """
+    """Generate visualizations of the analytical solution."""
     # Create mesh
     x = np.linspace(0, 1, N)
     y = np.linspace(0, 1, N)
@@ -120,47 +93,17 @@ def plot_analytical_solution(N: int = 100, save_path: str = None):
 
 def main():
     """Main function to demonstrate the analytical solution."""
-    
-    print("\n" + "=" * 70)
-    print(" " * 10 + "2D INVISCID BURGERS EQUATION - ANALYTICAL SOLUTION")
-    print("=" * 70)
-    print("\nEquation: ∂u/∂t + a*u*∂u/∂x + b*∂u/∂y = 0")
-    print("\nCase 1 Parameters:")
-    print("  a = 1.0  (nonlinear convection coefficient)")
-    print("  b = 1.0  (linear advection coefficient)")
-    print("  c = 1.5  (left boundary value)")
-    print("  d = -0.5 (right boundary value)")
-    print("\nDomain: [0, 1] × [0, 1]")
-    print("=" * 70)
-    
-    # Shock wave information
-    print("\nShock Wave Structure:")
-    print("-" * 70)
-    print("For y < 0.5:")
-    print("  - Left shock boundary:  x = 1.5y")
-    print("  - Right shock boundary: x = 1 - 0.5y")
-    print("  - Solution: u = 1.5 (left), varies (middle), u = -0.5 (right)")
-    print("\nFor y ≥ 0.5:")
-    print("  - Single shock boundary: x = 0.5 + 0.5y")
-    print("  - Solution: u = 1.5 (left), u = -0.5 (right)")
-    print("-" * 70)
+    print("Visualizing Analytical Solution (Case 1)...")
     
     # Generate plots
-    print("\nGenerating visualization...")
+    print("Generating visualization...")
     fig, U = plot_analytical_solution(
         N=100, 
         save_path='plots/analytical/demo_analytical_solution.png'
     )
     
-    # Print solution statistics
-    print("\nSolution Statistics:")
-    print(f"  Minimum value: {U.min():.4f}")
-    print(f"  Maximum value: {U.max():.4f}")
-    print(f"  Mean value:    {U.mean():.4f}")
-    
-    print("\n" + "=" * 70)
-    print("Demonstration complete!")
-    print("=" * 70 + "\n")
+    print(f"Stats: Min={U.min():.4f}, Max={U.max():.4f}, Mean={U.mean():.4f}")
+    print("Done.")
     
     plt.show()
 

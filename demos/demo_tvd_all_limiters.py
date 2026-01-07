@@ -1,24 +1,7 @@
 """
-=================================================================================
-Demo 3: Comprehensive Comparison of All TVD Flux Limiters
-=================================================================================
+Demo 3: Comprehensive Comparison of All TVD Flux Limiters.
 
-This script solves the 2D Inviscid Burgers Equation using ALL available TVD flux
-limiters and presents a comprehensive comparison with the analytical solution.
-
-Limiters Compared:
-    - Minmod, Van Albada, UMIST, Superbee
-    - Van Leer, Koren, QUICK, SMART
-
-Output:
-    - Grid of contour plots showing all limiters + analytical
-    - Error comparison table
-    - Summary statistics
-
-Usage:
-    python demos/demo_tvd_all_limiters.py
-
-=================================================================================
+Solves the equation using all available TVD flux limiters.
 """
 
 import numpy as np
@@ -60,8 +43,7 @@ def solve_all_limiters(N: int = 41, max_iterations: int = 10000,
     """
     results = {}
     
-    print(f"\nSolving with all {len(ALL_LIMITERS)} limiters on {N}×{N} grid...")
-    print("-" * 70)
+    print(f"Solving with all {len(ALL_LIMITERS)} limiters on {N}×{N} grid...")
     
     for limiter_enum, limiter_name in ALL_LIMITERS:
         print(f"  Solving with {limiter_name:12}...", end=" ", flush=True)
@@ -77,7 +59,7 @@ def solve_all_limiters(N: int = 41, max_iterations: int = 10000,
         converged, iterations, final_residual = solver.solve_steady_state(
             max_iterations=max_iterations,
             tolerance=tolerance,
-            print_interval=0,  # Silent
+            print_interval=max_iterations + 1,  # Silent
             method=SolverMethod.EXPLICIT_EULER
         )
         
@@ -116,27 +98,18 @@ def solve_all_limiters(N: int = 41, max_iterations: int = 10000,
 
 def print_comparison_table(results: dict):
     """Print a formatted comparison table."""
-    print("\n" + "=" * 80)
-    print(" " * 20 + "ERROR COMPARISON TABLE")
-    print("=" * 80)
-    print(f"{'Limiter':<12} {'Status':<10} {'Iterations':>10} {'L₁ Error':>12} "
-          f"{'L₂ Error':>12} {'L∞ Error':>12}")
-    print("-" * 80)
+    print("Error Comparison Table:")
+    print(f"{'Limiter':<12} {'Status':<10} {'Iter':>8} {'L2 Error':>12}")
     
     # Sort by L2 error
     sorted_results = sorted(results.items(), key=lambda x: x[1]['L2'])
     
     for name, data in sorted_results:
-        status = "Converged" if data['converged'] else "Max iter"
-        print(f"{name:<12} {status:<10} {data['iterations']:>10} {data['L1']:>12.6f} "
-              f"{data['L2']:>12.6f} {data['Linf']:>12.6f}")
+        status = "Conv" if data['converged'] else "Max"
+        print(f"{name:<12} {status:<10} {data['iterations']:>8} {data['L2']:>12.6f}")
     
-    print("-" * 80)
-    
-    # Find best limiter
     best = sorted_results[0]
-    print(f"\nBest performer (lowest L₂ error): {best[0]} with L₂ = {best[1]['L2']:.6f}")
-    print("=" * 80)
+    print(f"Best: {best[0]} (L2 = {best[1]['L2']:.6f})")
 
 
 def plot_all_comparisons(results: dict, save_path: str = None):
@@ -236,14 +209,7 @@ def plot_error_bars(results: dict, save_path: str = None):
 
 def main():
     """Main function to run comprehensive limiter comparison."""
-    
-    print("\n" + "=" * 70)
-    print(" " * 5 + "2D INVISCID BURGERS EQUATION - ALL TVD LIMITERS COMPARISON")
-    print("=" * 70)
-    print("\nThis demo solves the equation using ALL available TVD flux limiters")
-    print("and creates a comprehensive comparison with the analytical solution.")
-    print("\nCase 1 Parameters: a=1, b=1, c=1.5, d=-0.5")
-    print("=" * 70)
+    print("Starting TVD limiters comparison...")
     
     # Solve with all limiters
     results = solve_all_limiters(N=41, max_iterations=10000)

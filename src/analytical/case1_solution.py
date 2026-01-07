@@ -62,15 +62,15 @@ def analytical_solution_case1(x: Union[float, np.ndarray],
     x_arr, y_arr = np.broadcast_arrays(x, y)
     u = np.zeros_like(x_arr, dtype=float)
 
-    # For y < 0.5: Three regions
+    # For y < 0.5
     mask_y_low = y_arr < 0.5
 
     if np.any(mask_y_low):
-        # Region 1: x ≤ 1.5y
+        # Region 1: x <= 1.5y
         mask_region1 = mask_y_low & (x_arr <= 1.5 * y_arr)
         u[mask_region1] = c
 
-        # Region 2: 1.5y ≤ x ≤ (1 - 0.5y)
+        # Region 2: 1.5y <= x <= (1 - 0.5y)
         boundary1 = 1.5 * y_arr
         boundary2 = 1.0 - 0.5 * y_arr
         mask_region2 = mask_y_low & (x_arr >= boundary1) & (x_arr <= boundary2)
@@ -79,11 +79,11 @@ def analytical_solution_case1(x: Union[float, np.ndarray],
         safe_denom = np.where(np.abs(denominator) < 1e-10, 1e-10, denominator)
         u[mask_region2] = (1.5 - 2.0 * x_arr[mask_region2]) / safe_denom
 
-        # Region 3: x ≥ (1 - 0.5y)
+        # Region 3: x >= (1 - 0.5y)
         mask_region3 = mask_y_low & (x_arr >= boundary2)
         u[mask_region3] = d
 
-    # For y ≥ 0.5: Two regions
+    # For y >= 0.5
     mask_y_high = y_arr >= 0.5
 
     if np.any(mask_y_high):
@@ -124,22 +124,22 @@ def verify_boundary_conditions(N: int = 100) -> bool:
     y_test = np.linspace(0, 1, N)
     x_test = np.linspace(0, 1, N)
 
-    # BC 1: u(0, y) = 1.5
+    # BC 1
     u_left = analytical_solution_case1(0.0, y_test)
     bc1_satisfied = np.allclose(u_left, 1.5, atol=tolerance)
 
-    # BC 2: u(1, y) = -0.5
+    # BC 2
     u_right = analytical_solution_case1(1.0, y_test)
     bc2_satisfied = np.allclose(u_right, -0.5, atol=tolerance)
 
-    # BC 3: u(x, 0) = 1.5 - 2.0*x
+    # BC 3
     u_bottom = analytical_solution_case1(x_test, 0.0)
     u_bottom_expected = 1.5 - 2.0 * x_test
     bc3_satisfied = np.allclose(u_bottom, u_bottom_expected, atol=tolerance)
 
     print("Boundary Condition Verification:")
-    print(f"  BC1: u(0, y) = 1.5        -> {'PASS' if bc1_satisfied else 'FAIL'}")
-    print(f"  BC2: u(1, y) = -0.5       -> {'PASS' if bc2_satisfied else 'FAIL'}")
-    print(f"  BC3: u(x, 0) = 1.5 - 2x   -> {'PASS' if bc3_satisfied else 'FAIL'}")
+    print(f"  BC1: {'PASS' if bc1_satisfied else 'FAIL'}")
+    print(f"  BC2: {'PASS' if bc2_satisfied else 'FAIL'}")
+    print(f"  BC3: {'PASS' if bc3_satisfied else 'FAIL'}")
 
     return bc1_satisfied and bc2_satisfied and bc3_satisfied

@@ -1,25 +1,7 @@
 """
-=================================================================================
-Demo 2: Single TVD Limiter Comparison with Analytical Solution
-=================================================================================
+Demo 2: Single TVD Limiter Comparison with Analytical Solution.
 
-This script allows the user to select ONE TVD flux limiter, solve the 2D Inviscid
-Burgers Equation, and compare the numerical result with the analytical solution.
-
-Available Limiters:
-    1. Minmod      - Most diffusive, very stable
-    2. Van Albada  - Smooth, balanced accuracy/stability
-    3. UMIST       - Sharp shock capturing
-    4. Superbee    - Most compressive
-    5. Van Leer    - Good balance
-    6. Koren       - Third-order accurate
-    7. QUICK       - Quadratic upstream interpolation
-    8. SMART       - High resolution
-
-Usage:
-    python demos/demo_tvd_single_limiter.py
-
-=================================================================================
+Allows user to select ONE TVD flux limiter and compare with analytical solution.
 """
 
 import numpy as np
@@ -50,14 +32,9 @@ LIMITERS = {
 
 def display_menu():
     """Display the limiter selection menu."""
-    print("\n" + "=" * 70)
-    print(" " * 15 + "SELECT A TVD FLUX LIMITER")
-    print("=" * 70)
-    print("\nAvailable Limiters:")
-    print("-" * 70)
+    print("Select a TVD Flux Limiter:")
     for key, (_, name, desc) in LIMITERS.items():
         print(f"  [{key}] {name:12} - {desc}")
-    print("-" * 70)
 
 
 def get_user_choice():
@@ -94,7 +71,7 @@ def solve_with_limiter(limiter: FluxLimiter, N: int = 41,
     iterations : int
         Number of iterations used
     """
-    print(f"\nSolving with {limiter.value} limiter on {N}×{N} grid...")
+    print(f"Solving with {limiter.value} limiter on {N}×{N} grid...")
     
     # Create solver
     solver = BurgersSolverFVM_TVD(
@@ -197,37 +174,27 @@ def plot_comparison(solver, limiter_name: str, save_path: str = None):
 
 def main():
     """Main function for single limiter demonstration."""
-    
-    print("\n" + "=" * 70)
-    print(" " * 10 + "2D INVISCID BURGERS EQUATION - TVD SOLVER DEMO")
-    print("=" * 70)
-    print("\nThis demo solves the 2D Inviscid Burgers Equation using a TVD scheme")
-    print("with your chosen flux limiter, then compares with the analytical solution.")
+    print("TVD Solver Demo")
     
     # Display menu and get choice
     display_menu()
     limiter_enum, limiter_name, limiter_desc = get_user_choice()
     
-    print(f"\nSelected: {limiter_name} - {limiter_desc}")
+    print(f"Selected: {limiter_name}")
     
     # Solve
     solver, converged, iterations = solve_with_limiter(limiter_enum, N=41)
     
     if converged:
-        print(f"\n✓ Solution converged in {iterations} iterations")
+        print(f"Converged in {iterations} iterations")
     else:
-        print(f"\n⚠ Solution did not fully converge after {iterations} iterations")
+        print(f"Did not converge after {iterations} iterations")
     
     # Compute and display errors
     X, Y = np.meshgrid(solver.x, solver.y)
     L1, L2, Linf, _ = compute_errors(solver, X, Y)
     
-    print("\nError Metrics (vs Analytical Solution):")
-    print("-" * 40)
-    print(f"  L₁  Error: {L1:.6f}")
-    print(f"  L₂  Error: {L2:.6f}")
-    print(f"  L∞  Error: {Linf:.6f}")
-    print("-" * 40)
+    print(f"Errors: L1={L1:.6f}, L2={L2:.6f}, Linf={Linf:.6f}")
     
     # Plot comparison
     save_name = limiter_name.lower().replace(' ', '_')
@@ -236,9 +203,7 @@ def main():
         save_path=f'plots/tvd_comparison/demo_{save_name}_comparison.png'
     )
     
-    print("\n" + "=" * 70)
-    print("Demonstration complete!")
-    print("=" * 70 + "\n")
+    print("Done.")
     
     plt.show()
 

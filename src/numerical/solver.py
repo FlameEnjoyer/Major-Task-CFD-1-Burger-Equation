@@ -1,24 +1,11 @@
 """
 Finite Volume Method Solver for 2D Inviscid Burgers Equation
 
-This module implements a numerical solver using:
-    - Finite Volume Method (FVM) discretization
-    - First-order Upwind Scheme for convective fluxes
+Implemented using:
+    - Finite Volume Method (FVM)
+    - First-order Upwind Scheme
     - Explicit Euler time integration
     - CFL-based adaptive time stepping
-
-Equation:
-    du/dt + a*u*du/dx + b*du/dy = 0
-
-In conservative form:
-    du/dt + d(a*u^2/2)/dx + d(b*u)/dy = 0
-
-Domain: [0, 1] x [0, 1]
-
-Boundary Conditions:
-    u(0, y) = c       (left boundary)
-    u(1, y) = d       (right boundary)
-    u(x, 0) = c - (c-d)*x   (bottom boundary)
 """
 
 import numpy as np
@@ -31,57 +18,10 @@ import time
 class BurgersSolver2D:
     """
     2D Inviscid Burgers Equation Solver using Finite Volume Method.
-
-    Uses first-order upwind scheme for spatial discretization and
-    explicit Euler method for time integration.
-
-    Parameters
-    ----------
-    N : int
-        Number of grid points in each direction (N x N grid)
-    a : float
-        Coefficient for nonlinear convection term (u * du/dx)
-    b : float
-        Coefficient for linear advection term (du/dy)
-    c : float
-        Left boundary condition value u(0, y) = c
-    d : float
-        Right boundary condition value u(1, y) = d
-    cfl : float, optional
-        CFL number for stability (default: 0.5)
-
-    Attributes
-    ----------
-    x : np.ndarray
-        x-coordinates of cell centers
-    y : np.ndarray
-        y-coordinates of cell centers
-    X : np.ndarray
-        Meshgrid of x-coordinates
-    Y : np.ndarray
-        Meshgrid of y-coordinates
-    u : np.ndarray
-        Solution array (N x N)
-    dx : float
-        Grid spacing in x-direction
-    dy : float
-        Grid spacing in y-direction
-    dt : float
-        Current time step
-
-    Examples
-    --------
-    >>> # Case 1: a=1, b=1, c=1.5, d=-0.5
-    >>> solver = BurgersSolver2D(N=41, a=1.0, b=1.0, c=1.5, d=-0.5)
-    >>> solver.solve_steady_state(max_iterations=10000, tolerance=1e-6)
-    >>> solver.plot_solution()
     """
 
     def __init__(self, N: int, a: float, b: float, c: float, d: float,
                  cfl: float = 0.5):
-        """Initialize the Burgers equation solver."""
-
-        # Store parameters
         self.N = N
         self.a = a
         self.b = b
@@ -89,51 +29,28 @@ class BurgersSolver2D:
         self.d = d
         self.cfl = cfl
 
-        # Domain bounds
         self.x_min, self.x_max = 0.0, 1.0
         self.y_min, self.y_max = 0.0, 1.0
 
-        # Grid spacing
         self.dx = (self.x_max - self.x_min) / (N - 1)
         self.dy = (self.y_max - self.y_min) / (N - 1)
 
-        # Create grid (cell-centered values at nodes)
         self.x = np.linspace(self.x_min, self.x_max, N)
         self.y = np.linspace(self.y_min, self.y_max, N)
         self.X, self.Y = np.meshgrid(self.x, self.y)
 
-        # Initialize solution array
         self.u = np.zeros((N, N))
-
-        # Time step (will be computed based on CFL)
         self.dt = 0.0
 
-        # Convergence history
         self.residual_history = []
         self.iteration_count = 0
 
-        # Initialize with boundary and initial conditions
         self._apply_initial_conditions()
         self._apply_boundary_conditions()
-
-        # Compute initial time step
         self._compute_time_step()
 
-        print(f"BurgersSolver2D initialized:")
-        print(f"  Grid: {N} x {N}")
-        print(f"  Parameters: a={a}, b={b}, c={c}, d={d}")
-        print(f"  Grid spacing: dx={self.dx:.6f}, dy={self.dy:.6f}")
-        print(f"  CFL number: {cfl}")
-        print(f"  Initial dt: {self.dt:.6e}")
-
     def _apply_initial_conditions(self):
-        """
-        Apply initial conditions to the solution array.
-
-        Initial condition: u(x, 0) = c - (c - d) * x
-        This is extended throughout the domain as an initial guess.
-        """
-        # Use bottom boundary condition as initial guess for entire domain
+        """Apply initial conditions: u(x, 0) = c - (c - d) * x"""
         for i in range(self.N):
             for j in range(self.N):
                 x = self.x[i]
@@ -141,257 +58,114 @@ class BurgersSolver2D:
 
     def _apply_boundary_conditions(self):
         """
-        Apply boundary conditions to the solution array.
-
-        BCs (as specified in the PDF, Figure 4.1):
-            u(0, y) = c                   (left boundary, Dirichlet)
-            u(1, y) = d                   (right boundary, Dirichlet)
-            u(x, 0) = c - (c-d)*x         (bottom boundary, Dirichlet)
-            du/dy = 0 at y = 1            (top boundary, Neumann - zero gradient)
-
-        Since v = b > 0, flow goes upward (from bottom to top).
-        Top boundary is an outflow boundary, so we use zero gradient (Neumann).
+        Apply boundary conditions:
+            Left: u(0, y) = c
+            Right: u(1, y) = d
+            Bottom: u(x, 0) = c - (c-d)*x
+            Top: du/dy = 0 (Neumann)
         """
-        # Left boundary: u(0, y) = c (Dirichlet)
+        # Dirichlet BCs
         self.u[:, 0] = self.c
-
-        # Right boundary: u(1, y) = d (Dirichlet)
         self.u[:, -1] = self.d
 
-        # Bottom boundary: u(x, 0) = c - (c - d) * x (Dirichlet)
         for i in range(self.N):
             self.u[0, i] = self.c - (self.c - self.d) * self.x[i]
 
-        # Top boundary: du/dy = 0 (Neumann - zero gradient, outflow BC)
-        # Copy interior values to top row (excluding corners which are set by left/right BC)
+        # Top boundary (Neumann)
         self.u[-1, 1:-1] = self.u[-2, 1:-1]
 
     def _compute_time_step(self):
-        """
-        Compute the time step based on the CFL condition.
-
-        CFL condition for stability:
-            dt <= CFL * min(dx / |a*u|_max, dy / |b|)
-
-        Or equivalently:
-            CFL = dt * (|a*u|_max / dx + |b| / dy) <= 1
-        """
-        # Maximum velocity for CFL calculation
+        """Compute time step based on CFL condition."""
         u_max = np.max(np.abs(self.u))
         if u_max < 1e-10:
             u_max = max(abs(self.c), abs(self.d))
 
-        # Wave speeds
         speed_x = np.abs(self.a) * u_max
         speed_y = np.abs(self.b)
 
-        # Avoid division by zero
-        if speed_x < 1e-10:
-            speed_x = 1e-10
-        if speed_y < 1e-10:
-            speed_y = 1e-10
+        if speed_x < 1e-10: speed_x = 1e-10
+        if speed_y < 1e-10: speed_y = 1e-10
 
-        # CFL-based time step
         dt_x = self.dx / speed_x
         dt_y = self.dy / speed_y
 
         self.dt = self.cfl * min(dt_x, dt_y)
 
     def _compute_fvm_flux_divergence(self, u: np.ndarray) -> np.ndarray:
-        """
-        Compute the flux divergence using proper Finite Volume Method with Upwind scheme.
-
-        FVM formulation for 2D Inviscid Burgers Equation:
-            ∂u/∂t + ∂(a*u²/2)/∂x + ∂(b*u)/∂y = 0
-
-        In integral form over control volume V_c:
-            ∫∫ ∂u/∂t dV + ∮ H⃗·dS⃗ = 0
-
-        Where H⃗ = E*î + F*ĵ with:
-            E = a*u²/2  (x-direction flux)
-            F = b*u     (y-direction flux)
-
-        The flux at each face using first-order upwind:
-            - Face velocity: u_face = (u_C + u_neighbor)/2
-            - If face_velocity > 0: use upwind (upstream) cell value
-            - If face_velocity < 0: use downwind (downstream) cell value
-
-        Parameters
-        ----------
-        u : np.ndarray
-            Current solution array
-
-        Returns
-        -------
-        flux_div : np.ndarray
-            Total flux divergence (F_e + F_w + F_n + F_s) / cell_area
-        """
+        """Compute flux divergence using FVM with Upwind scheme."""
         N = self.N
         flux_div = np.zeros_like(u)
-
-        # Cell area (for uniform grid)
         cell_area = self.dx * self.dy
 
-        # Surface areas
-        # k_e = +dy (east face, normal points +x)
-        # k_w = -dy (west face, normal points -x)
-        # l_n = +dx (north face, normal points +y)
-        # l_s = -dx (south face, normal points -y)
-        k_e = self.dy
-        k_w = -self.dy
-        l_n = self.dx
-        l_s = -self.dx
+        k_e, k_w = self.dy, -self.dy
+        l_n, l_s = self.dx, -self.dx
 
-        # Interior points (excluding boundaries which are fixed)
-        for j in range(1, N - 1):  # y direction (row)
-            for i in range(1, N - 1):  # x direction (column)
-                u_C = u[j, i]      # Center
-                u_E = u[j, i + 1]  # East
-                u_W = u[j, i - 1]  # West
-                u_N = u[j + 1, i]  # North
-                u_S = u[j - 1, i]  # South
+        for j in range(1, N - 1):
+            for i in range(1, N - 1):
+                u_C = u[j, i]
+                u_E = u[j, i + 1]
+                u_W = u[j, i - 1]
+                u_N = u[j + 1, i]
+                u_S = u[j - 1, i]
 
-                # ============================================
-                # East face flux: F_e = k_e * u_e * phi_e
-                # ============================================
-                # Face velocity (average)
+                # East face (i+1/2)
                 u_e = 0.5 * (u_C + u_E)
+                phi_e = u_C if self.a * u_e >= 0 else u_E
+                flux_e = k_e * (self.a / 2.0) * phi_e**2
 
-                # Upwind selection for phi_e based on k_e * u_e
-                # k_e > 0, so sign depends on u_e
-                if self.a * u_e >= 0:
-                    # Flow goes from C to E, use upwind value = u_C
-                    phi_e = u_C
-                else:
-                    # Flow goes from E to C, use upwind value = u_E
-                    phi_e = u_E
-
-                # Flux at east face: E_e * area = (a/2)*u_e*phi_e * dy
-                # Using the formulation from PDF: k_e * u_e * phi_e where the flux is a*u*phi
-                # But for Burgers: E = a*u²/2, so at face: E_e = (a/2)*u_e*u_e = (a/2)*phi_e*phi_e
-                # Actually, the proper upwind flux for Burgers is:
-                # F_{i+1/2} = (a/2) * phi_e² where phi_e is the upwind value
-                flux_e = k_e * (self.a / 2.0) * phi_e * phi_e
-
-                # ============================================
-                # West face flux: F_w = k_w * u_w * phi_w
-                # ============================================
-                # Face velocity (average)
+                # West face (i-1/2)
                 u_w = 0.5 * (u_C + u_W)
+                phi_w = u_W if self.a * u_w >= 0 else u_C
+                flux_w = k_w * (self.a / 2.0) * phi_w**2
 
-                # Upwind selection for phi_w
-                # k_w < 0, so we need to consider the flux direction
-                # At west face, positive flow (u_w > 0) means flow from W to C
-                if self.a * u_w >= 0:
-                    # Flow goes from W to C, use upwind value = u_W
-                    phi_w = u_W
-                else:
-                    # Flow goes from C to W, use upwind value = u_C
-                    phi_w = u_C
-
-                # Flux at west face
-                flux_w = k_w * (self.a / 2.0) * phi_w * phi_w
-
-                # ============================================
-                # North face flux: F_n = l_n * phi_n
-                # ============================================
-                # For y-direction: F = b*u, so flux = b*phi_n * dx
-                # v = b is constant (given as 1 in the problem)
-
-                # Upwind selection for phi_n
-                if self.b >= 0:
-                    # Flow goes from C to N (upward), use upwind value = u_C
-                    phi_n = u_C
-                else:
-                    # Flow goes from N to C (downward), use upwind value = u_N
-                    phi_n = u_N
-
-                # Flux at north face
+                # North face (j+1/2)
+                phi_n = u_C if self.b >= 0 else u_N
                 flux_n = l_n * self.b * phi_n
 
-                # ============================================
-                # South face flux: F_s = l_s * phi_s
-                # ============================================
-                # Upwind selection for phi_s
-                if self.b >= 0:
-                    # Flow goes from S to C (upward), use upwind value = u_S
-                    phi_s = u_S
-                else:
-                    # Flow goes from C to S (downward), use upwind value = u_C
-                    phi_s = u_C
-
-                # Flux at south face
+                # South face (j-1/2)
+                phi_s = u_S if self.b >= 0 else u_C
                 flux_s = l_s * self.b * phi_s
 
-                # ============================================
-                # Total flux divergence = (sum of fluxes) / cell_area
-                # ============================================
                 flux_div[j, i] = (flux_e + flux_w + flux_n + flux_s) / cell_area
 
         return flux_div
 
     def _compute_fvm_flux_divergence_vectorized(self, u: np.ndarray) -> np.ndarray:
-        """
-        Vectorized computation of FVM flux divergence using upwind scheme.
-
-        More efficient implementation using numpy operations.
-        """
+        """Vectorized computation of FVM flux divergence using upwind scheme."""
         N = self.N
         flux_div = np.zeros_like(u)
-
-        # Cell area
         cell_area = self.dx * self.dy
 
-        # Surface areas
-        k_e = self.dy
-        k_w = -self.dy
-        l_n = self.dx
-        l_s = -self.dx
+        k_e, k_w = self.dy, -self.dy
+        l_n, l_s = self.dx, -self.dx
 
-        # Interior slices
-        int_j = slice(1, N - 1)  # rows 1 to N-2
-        int_i = slice(1, N - 1)  # cols 1 to N-2
+        int_j = slice(1, N - 1)
+        int_i = slice(1, N - 1)
 
-        # Get neighbor values
         u_C = u[int_j, int_i]
-        u_E = u[int_j, 2:]       # i+1
-        u_W = u[int_j, :-2]      # i-1
-        u_N = u[2:, int_i]       # j+1
-        u_S = u[:-2, int_i]      # j-1
+        u_E = u[int_j, 2:]
+        u_W = u[int_j, :-2]
+        u_N = u[2:, int_i]
+        u_S = u[:-2, int_i]
 
-        # ============================================
         # East face
-        # ============================================
         u_e = 0.5 * (u_C + u_E)
         phi_e = np.where(self.a * u_e >= 0, u_C, u_E)
-        flux_e = k_e * (self.a / 2.0) * phi_e * phi_e
+        flux_e = k_e * (self.a / 2.0) * phi_e**2
 
-        # ============================================
         # West face
-        # ============================================
         u_w = 0.5 * (u_C + u_W)
         phi_w = np.where(self.a * u_w >= 0, u_W, u_C)
-        flux_w = k_w * (self.a / 2.0) * phi_w * phi_w
+        flux_w = k_w * (self.a / 2.0) * phi_w**2
 
-        # ============================================
         # North face
-        # ============================================
-        if self.b >= 0:
-            phi_n = u_C
-        else:
-            phi_n = u_N
+        phi_n = u_C if self.b >= 0 else u_N
         flux_n = l_n * self.b * phi_n
 
-        # ============================================
         # South face
-        # ============================================
-        if self.b >= 0:
-            phi_s = u_S
-        else:
-            phi_s = u_C
+        phi_s = u_S if self.b >= 0 else u_C
         flux_s = l_s * self.b * phi_s
 
-        # Total flux divergence
         flux_div[int_j, int_i] = (flux_e + flux_w + flux_n + flux_s) / cell_area
 
         return flux_div
@@ -399,51 +173,19 @@ class BurgersSolver2D:
     def _compute_upwind_flux_x(self, u: np.ndarray) -> np.ndarray:
         """
         Compute the convective flux in x-direction using first-order upwind.
-
-        DEPRECATED: Use _compute_fvm_flux_divergence instead for proper FVM.
-        Kept for backward compatibility.
-
-        For the term a*u*du/dx = d(a*u^2/2)/dx:
-            - If a*u > 0: use left (backward) value
-            - If a*u < 0: use right (forward) value
-
-        Parameters
-        ----------
-        u : np.ndarray
-            Current solution array
-
-        Returns
-        -------
-        flux_x : np.ndarray
-            Flux contribution in x-direction
-
-        FVM Derivation Note:
-        --------------------
-        The discrete equation for cell (i,j) is:
-        u_new = u_old - (dt/dx)*(F_{i+1/2} - F_{i-1/2}) - ...
-
-        Where the numerical flux F_{i+1/2} at the interface is approximated using
-        the First-Order Upwind Scheme based on the wave speed 'a*u':
-        - If a*u > 0: F_{i+1/2} ≈ a * u_{i}   (Information flows from left)
-        - If a*u < 0: F_{i+1/2} ≈ a * u_{i+1} (Information flows from right)
-
-        This code implements this by computing the net flux divergence directly.
+        DEPRECATED: Use _compute_fvm_flux_divergence instead.
         """
         N = self.N
         flux = np.zeros_like(u)
 
-        # Interior points (excluding boundaries)
-        for j in range(1, N - 1):  # y direction
-            for i in range(1, N - 1):  # x direction
-                # Local velocity for upwind determination
+        for j in range(1, N - 1):
+            for i in range(1, N - 1):
                 u_local = u[j, i]
                 wave_speed = self.a * u_local
 
                 if wave_speed >= 0:
-                    # Use backward difference (upwind from left)
                     flux[j, i] = self.a * u_local * (u[j, i] - u[j, i-1]) / self.dx
                 else:
-                    # Use forward difference (upwind from right)
                     flux[j, i] = self.a * u_local * (u[j, i+1] - u[j, i]) / self.dx
 
         return flux
@@ -451,35 +193,16 @@ class BurgersSolver2D:
     def _compute_upwind_flux_y(self, u: np.ndarray) -> np.ndarray:
         """
         Compute the advective flux in y-direction using first-order upwind.
-
-        DEPRECATED: Use _compute_fvm_flux_divergence instead for proper FVM.
-        Kept for backward compatibility.
-
-        For the term b*du/dy:
-            - If b > 0: use backward difference
-            - If b < 0: use forward difference
-
-        Parameters
-        ----------
-        u : np.ndarray
-            Current solution array
-
-        Returns
-        -------
-        flux_y : np.ndarray
-            Flux contribution in y-direction
+        DEPRECATED: Use _compute_fvm_flux_divergence instead.
         """
         N = self.N
         flux = np.zeros_like(u)
 
-        # Interior points (excluding boundaries)
-        for j in range(1, N - 1):  # y direction
-            for i in range(1, N - 1):  # x direction
+        for j in range(1, N - 1):
+            for i in range(1, N - 1):
                 if self.b >= 0:
-                    # Use backward difference (upwind from bottom)
                     flux[j, i] = self.b * (u[j, i] - u[j-1, i]) / self.dy
                 else:
-                    # Use forward difference (upwind from top)
                     flux[j, i] = self.b * (u[j+1, i] - u[j, i]) / self.dy
 
         return flux
@@ -545,32 +268,7 @@ class BurgersSolver2D:
 
     def _solve_tdma(self, a: np.ndarray, b: np.ndarray, c: np.ndarray,
                     d: np.ndarray) -> np.ndarray:
-        """
-        Solve a tri-diagonal system using the Thomas Algorithm (TDMA).
-
-        The system is:
-            a[i]*x[i-1] + b[i]*x[i] + c[i]*x[i+1] = d[i]
-
-        Algorithm:
-            Forward sweep: Eliminate lower diagonal
-            Backward substitution: Solve for x
-
-        Parameters
-        ----------
-        a : np.ndarray
-            Lower diagonal (a[0] = 0)
-        b : np.ndarray
-            Main diagonal
-        c : np.ndarray
-            Upper diagonal (c[n-1] = 0)
-        d : np.ndarray
-            Right-hand side
-
-        Returns
-        -------
-        x : np.ndarray
-            Solution vector
-        """
+        """Solve a tri-diagonal system using the Thomas Algorithm (TDMA)."""
         n = len(d)
         c_prime = np.zeros(n)
         d_prime = np.zeros(n)
@@ -595,25 +293,10 @@ class BurgersSolver2D:
         return x
 
     def time_step_implicit(self) -> float:
-        """
-        Perform one time step using fully implicit method with direct TDMA.
-
-        Equation: ∂u/∂t + ∂(a*u²/2)/∂x + ∂(b*u)/∂y = 0
-
-        For implicit method: (u^(n+1) - u^n)/dt + flux_div(u^(n+1)) = 0
-        Linearize nonlinear x-flux: d(a*u²/2)/dx ≈ a*u^n * d(u^(n+1))/dx
-
-        Solve each row and column iteratively using TDMA.
-
-        Returns
-        -------
-        residual : float
-            L2 norm of the change in solution
-        """
+        """Perform one time step using fully implicit method with direct TDMA."""
         u_old = self.u.copy()
         N = self.N
 
-        # Compute time step
         self._compute_time_step()
         dt = self.dt
 
@@ -792,47 +475,10 @@ class BurgersSolver2D:
                            use_vectorized: bool = True,
                            use_fvm: bool = True,
                            use_implicit: bool = False) -> Dict:
-        """
-        Solve until steady state is reached.
-
-        Iterates until the residual falls below the tolerance or
-        maximum iterations is reached.
-
-        Parameters
-        ----------
-        max_iterations : int
-            Maximum number of time steps
-        tolerance : float
-            Convergence tolerance for residual
-        print_interval : int
-            Print progress every this many iterations
-        use_vectorized : bool
-            Use vectorized flux computation (explicit only)
-        use_fvm : bool
-            Use proper FVM flux divergence (explicit only)
-        use_implicit : bool
-            Use implicit TDMA method (ADI) instead of explicit Euler
-
-        Returns
-        -------
-        result : dict
-            Dictionary containing:
-            - 'converged': bool
-            - 'iterations': int
-            - 'final_residual': float
-            - 'residual_history': list
-            - 'time_elapsed': float
-            - 'method': str
-        """
+        """Solve until steady state is reached."""
         method_name = "Implicit TDMA (ADI)" if use_implicit else "Explicit Euler"
-        print("\n" + "="*60)
-        print("Starting steady-state solver...")
-        print(f"  Method: {method_name}")
-        print(f"  Max iterations: {max_iterations}")
-        print(f"  Tolerance: {tolerance:.2e}")
-        if not use_implicit:
-            print(f"  Using FVM: {use_fvm}")
-        print("="*60 + "\n")
+        print(f"\nStarting solver ({method_name})...")
+        print("="*60)
 
         start_time = time.time()
         self.residual_history = []
@@ -934,23 +580,7 @@ class BurgersSolver2D:
     def plot_solution(self, save_path: str = None,
                       show_plot: bool = True,
                       title_suffix: str = "") -> plt.Figure:
-        """
-        Plot the numerical solution.
-
-        Parameters
-        ----------
-        save_path : str, optional
-            Path to save the figure
-        show_plot : bool
-            Whether to display the plot
-        title_suffix : str
-            Additional text to add to plot titles
-
-        Returns
-        -------
-        fig : matplotlib.figure.Figure
-            The generated figure
-        """
+        """Plot the numerical solution."""
         fig = plt.figure(figsize=(16, 5))
 
         # Subplot 1: Filled contour

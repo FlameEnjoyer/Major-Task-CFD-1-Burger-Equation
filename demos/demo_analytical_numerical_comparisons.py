@@ -1,13 +1,5 @@
 """
-Generate Side-by-Side Comparisons of Analytical and Numerical Solutions
-For 2D Inviscid Burgers Equation
-
-This script creates publication-quality comparison plots showing:
-- 2D contour plots (Analytical vs Numerical) side-by-side
-- 3D surface plots (Analytical vs Numerical) side-by-side
-- For both N=21 and N=41 grid sizes
-
-Following the format from the reference figures.
+Generate Side-by-Side Comparisons of Analytical and Numerical Solutions.
 """
 
 import numpy as np
@@ -26,21 +18,7 @@ from src.analytical.case1_solution import analytical_solution_case1
 
 
 def plot_2d_comparison(solver, N, save_path=None):
-    """
-    Create side-by-side 2D contour comparison plot.
-
-    Left: Analytical Solution
-    Right: Numerical Solution (Upwind FVM)
-
-    Parameters
-    ----------
-    solver : BurgersSolver2D
-        Solved numerical solver instance
-    N : int
-        Grid size
-    save_path : str, optional
-        Path to save the figure
-    """
+    """Create side-by-side 2D contour comparison plot."""
     # Get numerical solution
     X_num = solver.X
     Y_num = solver.Y
@@ -98,9 +76,7 @@ def plot_2d_comparison(solver, N, save_path=None):
     return fig
 
 def plot_error_field(solver, N, save_path=None):
-    """
-    Figure B: Standalone Error Field Plot (Log-Scaled).
-    """
+    """Figure B: Standalone Error Field Plot (Log-Scaled)."""
     # Get solutions
     X_num = solver.X
     Y_num = solver.Y
@@ -144,21 +120,7 @@ def plot_error_field(solver, N, save_path=None):
     return fig
 
 def plot_3d_comparison(solver, N, save_path=None):
-    """
-    Create side-by-side 3D surface comparison plot.
-
-    Left: Analytical Solution
-    Right: Numerical Solution (Upwind FVM)
-
-    Parameters
-    ----------
-    solver : BurgersSolver2D
-        Solved numerical solver instance
-    N : int
-        Grid size
-    save_path : str, optional
-        Path to save the figure
-    """
+    """Create side-by-side 3D surface comparison plot."""
     # Get numerical solution
     X_num = solver.X
     Y_num = solver.Y
@@ -330,15 +292,8 @@ def run_comparison_for_grid_size(N, output_dir='plots/comparisons'):
 
 
 def main():
-    """
-    Main function to generate all comparisons.
-    """
-    print("\n" + "#"*70)
-    print("#" + " "*68 + "#")
-    print("#" + " "*10 + "ANALYTICAL vs NUMERICAL SOLUTION COMPARISON" + " "*15 + "#")
-    print("#" + " "*15 + "2D Inviscid Burgers Equation" + " "*26 + "#")
-    print("#" + " "*68 + "#")
-    print("#"*70)
+    """Main function to generate all comparisons."""
+    print("Starting analytical vs numerical comparison...")
 
     output_dir = 'plots/comparisons'
     grid_sizes = [21, 41, 201]

@@ -20,10 +20,8 @@ def run_simulation(case_name, params, grid_sizes=[21, 41, 201], output_dir='resu
     case_history = {}
     solvers = {}
     
-    print(f"\n{'='*60}")
     print(f"RUNNING {case_name}")
     print(f"Parameters: {params}")
-    print(f"{'='*60}")
 
     for N in grid_sizes:
         print(f"\n  Running Grid Size N={N}...")
@@ -174,9 +172,7 @@ def main():
     with open(summary_path, 'w') as f:
         yaml.dump(overall_history, f, sort_keys=False)
         
-    print(f"\n{'='*60}")
     print(f"ALL CASES COMPLETED. Summary saved to {summary_path}")
-    print(f"{'='*60}")
 
 if __name__ == "__main__":
     main()

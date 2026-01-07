@@ -1,21 +1,7 @@
 """
-=================================================================================
-Demo 6: Grid Convergence Study (Order of Accuracy)
-=================================================================================
-This script performs a grid dependence test to verify the order of accuracy
-of the numerical scheme.
+Demo 6: Grid Convergence Study (Order of Accuracy).
 
-It runs the solver on three successively refined grids:
-1. Coarse (N=21)
-2. Medium (N=41)
-3. Fine   (N=81)
-
-It computes the L2 Error norm against the Analytical Solution for each.
-The Order of Accuracy (p) is estimated using the ratio of errors.
-
-Usage:
-    python demos/demo_grid_convergence.py
-=================================================================================
+Performs a grid dependence test to verify the order of accuracy.
 """
 
 import numpy as np
@@ -43,12 +29,11 @@ def run_grid_convergence():
     print(f"{'Grid (NxN)':<15} {'Dx':<12} {'Iterations':<12} {'L2 Error':<12} {'Order (p)':<10}")
     print("-" * 80)
 
-    # 2. Loop through grids
+    # Loop through grids
     prev_error = None
     
     for N in grids:
-        # We use VAN_LEER as the representative scheme (stable and 2nd order)
-        # You can change this to FluxLimiter.UPWIND to see 1st order behavior
+        # We use VAN_LEER as the representative scheme
         solver = BurgersSolverFVM_TVD(
             N=N, 
             a=1.0, b=1.0, c=1.5, d=-0.5, 
@@ -56,28 +41,19 @@ def run_grid_convergence():
             limiter=FluxLimiter.UPWIND   
         )
         
-        # Solve
-        # FIX: Removed 'verbose=False' and added 'print_interval'
         stats = solver.solve_steady_state(
             max_iterations=10000, 
             tolerance=1e-6, 
             method=SolverMethod.EXPLICIT_EULER,
-            print_interval=10001 # Set higher than max_iter to silence output
+            print_interval=10001
         )
         
-        # Compute Error
         errors = solver.compute_error(analytical_solution_case1)
         l2_error = errors['L2']
         
         # Calculate Order of Accuracy (p)
         order_str = "N/A"
         if prev_error is not None:
-            # Formula: p = log(Error_coarse / Error_fine) / log(Refinement_ratio)
-            # Refinement ratio is roughly 2 (since dx halves)
-            # Accurate ratio: ratio = dx_old / dx_new
-            
-            # Note: We use the previous loop's dx, but since we didn't save it, 
-            # we assume ~2.0 refinement.
             p = math.log(prev_error / l2_error) / math.log(2.0)
             order_str = f"{p:.2f}"
             

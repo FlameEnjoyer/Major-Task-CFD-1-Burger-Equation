@@ -1,6 +1,5 @@
 """
-Create comprehensive comparison plot showing all TVD limiters + analytical solution
-Grid layout: 2 rows x 4 columns = 8 subplots
+Generate comprehensive comparison plot showing all TVD limiters + analytical solution.
 """
 
 import numpy as np
@@ -16,16 +15,8 @@ from src.analytical.case1_solution import analytical_solution_case1
 
 
 def create_comprehensive_comparison(N=41, save_path=None):
-    """
-    Create comprehensive 2D contour comparison plot for all TVD limiters.
-
-    Layout:
-        Row 1: Analytical, Upwind, Min-Mod, Van Leer
-        Row 2: Albada, Superbee, QUICK, UMIST
-    """
-    print("\n" + "="*80)
-    print(" GENERATING COMPREHENSIVE TVD LIMITER COMPARISON")
-    print("="*80)
+    """Create comprehensive 2D contour comparison plot for all TVD limiters."""
+    print("Generating comprehensive TVD limiter comparison...")
 
     # Define all limiters to compare
     limiters = [

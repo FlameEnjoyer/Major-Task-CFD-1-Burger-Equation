@@ -1,19 +1,5 @@
 """
-Generate Comprehensive TVD Limiter Comparisons
-
-This script generates comparison plots for different TVD flux limiters:
-- Analytical vs Numerical (2D contour and 3D surface) for N=41
-- Error plots for N=21 and N=41
-
-Flux limiters tested:
-1. Upwind (First-order)
-2. Min-Mod
-3. Van Leer
-4. Van Albada
-5. Superbee
-6. Sweby
-7. QUICK
-8. UMIST
+Generate Comprehensive TVD Limiter Comparisons.
 """
 
 import numpy as np
@@ -30,20 +16,7 @@ from src.analytical.case1_solution import analytical_solution_case1
 
 
 def plot_analytical_vs_numerical_2d(solver, limiter_name, N, save_path=None):
-    """
-    Create side-by-side 2D contour comparison plot.
-
-    Parameters
-    ----------
-    solver : BurgersSolverFVM_TVD
-        Solved numerical solver instance
-    limiter_name : str
-        Name of the flux limiter
-    N : int
-        Grid size
-    save_path : str, optional
-        Path to save the figure
-    """
+    """Create side-by-side 2D contour comparison plot."""
     # Get numerical solution
     X_num = solver.X
     Y_num = solver.Y
@@ -102,20 +75,7 @@ def plot_analytical_vs_numerical_2d(solver, limiter_name, N, save_path=None):
 
 
 def plot_analytical_vs_numerical_3d(solver, limiter_name, N, save_path=None):
-    """
-    Create side-by-side 3D surface comparison plot.
-
-    Parameters
-    ----------
-    solver : BurgersSolverFVM_TVD
-        Solved numerical solver instance
-    limiter_name : str
-        Name of the flux limiter
-    N : int
-        Grid size
-    save_path : str, optional
-        Path to save the figure
-    """
+    """Create side-by-side 3D surface comparison plot."""
     # Get numerical solution
     X_num = solver.X
     Y_num = solver.Y
@@ -183,20 +143,7 @@ def plot_analytical_vs_numerical_3d(solver, limiter_name, N, save_path=None):
 
 
 def plot_error_comparison(solver_21, solver_41, limiter_name, save_path=None):
-    """
-    Create side-by-side error plots for N=21 and N=41.
-
-    Parameters
-    ----------
-    solver_21 : BurgersSolverFVM_TVD
-        Solver with N=21
-    solver_41 : BurgersSolverFVM_TVD
-        Solver with N=41
-    limiter_name : str
-        Name of the flux limiter
-    save_path : str, optional
-        Path to save the figure
-    """
+    """Create side-by-side error plots for N=21 and N=41."""
     # Compute errors for N=21
     X_21 = solver_21.X
     Y_21 = solver_21.Y
@@ -380,15 +327,8 @@ def run_limiter_comparison(limiter, limiter_name, output_dir='plots/tvd_comparis
 
 
 def main():
-    """
-    Main function to generate all TVD limiter comparisons.
-    """
-    print("\n" + "#"*80)
-    print("#" + " "*78 + "#")
-    print("#" + " "*15 + "TVD FLUX LIMITER COMPREHENSIVE COMPARISON" + " "*22 + "#")
-    print("#" + " "*20 + "2D Inviscid Burgers Equation" + " "*32 + "#")
-    print("#" + " "*78 + "#")
-    print("#"*80)
+    """Main function to generate all TVD limiter comparisons."""
+    print("Starting TVD limiter comparison...")
 
     output_dir = 'plots/tvd_comparisons'
 
