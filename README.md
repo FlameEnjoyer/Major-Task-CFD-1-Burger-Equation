@@ -24,44 +24,23 @@ Where:
 ## Project Structure
 
 ```
-├── demos/
-│   ├── demo_analytical_solution.py              # Visualize analytical solution
-│   ├── demo_tvd_single_limiter.py               # Solve with user-selected limiter
-│   ├── demo_tvd_all_limiters.py                 # Compare all TVD limiters
-│   ├── demo_quick_upwind_comparison.py          # Run QUICK vs Upwind comparison
-│   ├── demo_grid_convergence.py                 # Run grid convergence study with Upwind
-│   ├── demo_grid_visualization.py               # Visualize computational grids
-│   ├── demo_flowcharts.py                       # Generate academic flowcharts
-│   ├── demo_tvd_limiter_comparisons.py          # Detailed limiter comparisons
-│   ├── demo_analytical_numerical_comparisons.py # Numerical vs analytical comparisons
-│   ├── demo_all_limiters_comprehensive_plot.py  # Comprehensive limiter analysis
-│   └── run_cases.py                             # Run predefined test cases
-├── src/
-│   ├── analytical/                              # Analytical solution implementation
+├── demos/                        # Demo scripts
+│   ├── demo_analytical_solution.py
+│   ├── demo_tvd_single_limiter.py
+│   ├── demo_tvd_all_limiters.py
+│   ├── demo_quick_upwind_comparison.py
+│   ├── demo_grid_convergence.py
+│   └── ...
+├── src/                          # Source code
+│   ├── analytical/
 │   │   └── case1_solution.py
-│   └── numerical/                               # Numerical solver implementations
-│       ├── solver.py                            # Original FVM solver
-│       └── solver_fvm_tvd.py                    # TVD solver with flux limiters
-├── scripts/                                     # Utility scripts
-│   ├── analysis/                                # Analysis tools
-│   ├── demos/                                   # Additional demo utilities
-│   └── tests/                                   # Test scripts
-├── docs/                                        # Documentation
-│   ├── FINAL_REPORT.md                          # Comprehensive project report
-│   ├── DERIVATIONS.md                           # Mathematical derivations
-│   ├── HOW_TO_RUN.md                            # Running instructions
-│   ├── PLOTS_GUIDE.md                           # Plotting guidelines
-│   ├── PROJECT_SUMMARY.md                       # Project summary
-│   └── GIT_WORKFLOW.md                          # Git workflow guide
-├── References/                                  # Reference materials
-├── plots/                                       # Generated output plots
-├── cases.yaml                                   # Test case configurations
-├── regenerate_upwind_corrected.py               # Upwind regeneration script
-├── verify_analytical_grid_independence.py       # Grid independence verification
-├── test_tdma_solver.py                          # TDMA solver tests
-├── TDMA_IMPLEMENTATION_GUIDE.md                 # TDMA implementation guide
+│   └── numerical/
+│       ├── solver.py
+│       └── solver_fvm_tvd.py
+├── .gitattributes
 ├── .gitignore
 ├── README.md
+├── cases.yaml                    # Test case configurations
 └── requirements.txt
 ```
 
